@@ -141,6 +141,43 @@ const VALID_TRANSITIONS = {
   REFUNDED: [],
 };
 
+// GET /api/orders/my-orders — logged-in user's orders
+const getMyOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({
+    user: req.user._id,
+  }).sort({ createdAt: -1 });
+
+  sendSuccess(res, { orders });
+});
+
+// GET /api/orders/my-orders/:orderId — logged-in user's specific order
+const getMyOrderById = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+
+  const query = {
+    user: req.user._id,
+    $or: [],
+  };
+
+  if (orderId.match(/^[0-9a-fA-F]{24}$/)) {
+    query.$or.push({ _id: orderId });
+  }
+
+  query.$or.push({ orderNumber: orderId });
+
+  const order = await Order.findOne(query);
+
+  if (!order) {
+    throw new ApiError(
+      404,
+      "Order not found",
+      "ORDER_NOT_FOUND"
+    );
+  }
+
+  sendSuccess(res, { order });
+});
+
 const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, "Order not found", "ORDER_NOT_FOUND");
@@ -169,6 +206,8 @@ module.exports = {
   createOrder,
   getOrder,
   trackOrder,
+  getMyOrders,
+  getMyOrderById,
   adminGetOrders,
   adminGetOrderById,
   adminUpdateOrderStatus,
